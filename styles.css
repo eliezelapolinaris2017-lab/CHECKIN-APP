@@ -1,0 +1,158 @@
+:root{
+  --bg:#050507;
+  --card:#111118;
+  --gold:#d6b15a;
+  --gold2:#f1d48a;
+  --text:#f5f5f7;
+  --line:#23232c;
+  --r:18px;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui;
+  background:radial-gradient(circle at top,#111 0%,#050507 60%);
+  color:var(--text);
+}
+
+.topbar{
+  padding:14px 20px;
+  background:#000;
+  border-bottom:1px solid #181820;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.brand{display:flex;gap:12px;align-items:center}
+.logo{
+  width:46px;height:46px;border-radius:14px;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#000;font-weight:900;
+  display:flex;align-items:center;justify-content:center;
+}
+
+.brandTitle{font-weight:900}
+.brandSub{font-size:12px;opacity:.7}
+
+.kpiBox b{font-size:22px;color:var(--gold)}
+
+.grid{
+  display:grid;
+  grid-template-columns:420px 1fr;
+  gap:20px;
+  padding:20px;
+}
+
+.card{
+  background:linear-gradient(180deg,#14141c,#0f0f15);
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  padding:20px;
+}
+
+input,button{
+  width:100%;
+  padding:14px;
+  margin:8px 0;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:#0c0c12;
+  color:white;
+  font-size:16px;
+}
+
+button{
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:black;
+  font-weight:900;
+  cursor:pointer;
+}
+
+button.ghost{
+  background:transparent;
+  border:1px solid var(--line);
+  color:white;
+}
+
+.quickBtns{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:8px;
+}
+.q{padding:10px;font-weight:900}
+
+.display{
+  position:relative;
+  overflow:hidden;
+}
+
+.fsBtn{
+  position:absolute;
+  top:10px;
+  right:10px;
+  width:auto;
+}
+
+.welcomeWrap{
+  text-align:center;
+  margin-top:40px;
+}
+
+.welcomeBig{
+  font-size:48px;
+  font-weight:900;
+  background:linear-gradient(135deg,var(--gold),#fff);
+  -webkit-background-clip:text;
+  color:transparent;
+  opacity:.25;
+  transition:.4s;
+}
+
+.welcomeBig.pop{
+  transform:scale(1.08);
+  opacity:1;
+}
+
+.welcomeSub{
+  opacity:.6;
+  margin-top:6px;
+}
+
+.ticker{
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#000;
+  border-top:1px solid var(--line);
+  overflow:hidden;
+}
+
+.tickerTrack{
+  display:inline-block;
+  white-space:nowrap;
+  padding:12px 0;
+  animation:ticker 25s linear infinite;
+}
+
+.tickerItem{
+  display:inline-block;
+  margin:0 40px;
+  font-weight:800;
+  color:var(--gold);
+}
+
+@keyframes ticker{
+  from{ transform:translateX(0); }
+  to{ transform:translateX(-50%); }
+}
+
+.fullscreen{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  border-radius:0;
+}
+.error{color:#ff5a5f;font-size:13px}
