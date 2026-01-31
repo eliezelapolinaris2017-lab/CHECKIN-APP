@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Check-In Multi Iglesia</title>
+<title>Nexus Churchs — Check-In</title>
 
 <link rel="stylesheet" href="styles.css">
 
@@ -15,42 +15,58 @@
 <body>
 
 <header class="topbar">
-<h1>Check-In Servicio</h1>
-<div id="kpi">Total Hoy: <b id="totalCount">0</b></div>
+  <div class="brand">
+    <div class="logo">NC</div>
+    <div>
+      <div class="brandTitle">Nexus Churchs</div>
+      <div class="brandSub">Sistema Multi-Iglesias · Check-In</div>
+    </div>
+  </div>
+
+  <div class="kpiBox">
+    Total Hoy
+    <b id="totalCount">0</b>
+  </div>
 </header>
 
 <div class="grid">
 
-<!-- TABLET REGISTRO -->
-<section class="card">
-<h2>Registro</h2>
+  <!-- REGISTRO TABLET -->
+  <section class="card">
+    <h2>Registro de Asistencia</h2>
 
-<form id="checkinForm">
-<input id="fullName" placeholder="Nombre completo" required>
-<input id="partySize" type="number" value="1" min="1">
-<button>Registrar</button>
-</form>
+    <form id="checkinForm" autocomplete="off">
+      <input id="fullName" placeholder="Nombre y Apellido" required>
+      <div class="error" id="nameError" hidden>
+        Requerido: nombre + apellido real
+      </div>
 
-<div class="hint">Modo tablet — rápido y sin fricción</div>
-</section>
+      <input id="partySize" type="number" value="1" min="1">
+      <button>Registrar Entrada</button>
+    </form>
 
-<!-- PANTALLA PRINCIPAL -->
-<section class="card display">
-<h2>Pantalla en Vivo</h2>
+    <div class="hint">
+      Operación tablet optimizada · captura rápida
+    </div>
+  </section>
 
-<div id="welcome" class="welcome">—</div>
+  <!-- DISPLAY -->
+  <section class="card display">
+    <h2>Panel en Vivo</h2>
 
-<table>
-<thead>
-<tr>
-<th>Hora</th>
-<th>Nombre</th>
-<th>#</th>
-</tr>
-</thead>
-<tbody id="rows"></tbody>
-</table>
-</section>
+    <div id="welcome" class="welcome">—</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Hora</th>
+          <th>Nombre</th>
+          <th>#</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
 
 </div>
 
