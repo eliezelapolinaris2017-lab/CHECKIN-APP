@@ -56,6 +56,17 @@
     <input id="sessionTitle" placeholder="Nombre de la sesión (ej: Domingo 10AM)" />
     <div class="hint" id="sessionMeta">—</div>
 
+    <div class="row2">
+      <div>
+        <div class="hint">Duración saludo (seg)</div>
+        <input id="wowSeconds" type="number" min="1" max="30" value="6">
+      </div>
+      <div>
+        <div class="hint">Aplicar</div>
+        <button id="btnApplyWow" type="button" class="ghost">Actualizar</button>
+      </div>
+    </div>
+
     <hr class="sep">
 
     <h2>Registro Rápido</h2>
@@ -87,9 +98,9 @@
   <section class="card display wow" id="displayCard">
     <button id="btnFullscreen" class="ghost fsBtn" type="button">⛶</button>
 
+    <!-- ÚNICO BLOQUE CENTRADO -->
     <div class="welcomeWrap">
       <div id="welcomeBig" class="welcomeBig">Bienvenidos</div>
-      <div class="welcomeSub" id="welcomeSub">Nos alegra su visita</div>
     </div>
 
     <div class="ticker">
