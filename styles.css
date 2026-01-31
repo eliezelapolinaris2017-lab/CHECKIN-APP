@@ -36,7 +36,6 @@ body{
   color:#000;font-weight:900;
   display:flex;align-items:center;justify-content:center;
 }
-
 .brandTitle{font-weight:900}
 .brandSub{font-size:12px;opacity:.7}
 
@@ -149,6 +148,14 @@ button.ghost{
 .pill.ok{ color:var(--ok); border-color:rgba(61,220,151,.35); }
 .pill.bad{ color:var(--bad); border-color:rgba(255,90,95,.35); }
 
+.row2{
+  display:grid;
+  grid-template-columns:1fr 140px;
+  gap:10px;
+  align-items:end;
+  margin-top:6px;
+}
+
 .history{
   display:flex;
   flex-direction:column;
@@ -169,31 +176,38 @@ button.ghost{
 }
 .hTitle{ font-weight:900; }
 .hMeta{ font-size:12px; color:var(--muted); margin-top:4px; }
-
-.hBtns{
-  display:flex;
-  gap:8px;
-}
-.hBtns button{
-  width:auto;
-  padding:10px 12px;
-}
+.hBtns{ display:flex; gap:8px; }
+.hBtns button{ width:auto; padding:10px 12px; }
 
 .display{position:relative;overflow:hidden}
 .fsBtn{position:absolute;top:10px;right:10px}
 
-.welcomeWrap{text-align:center;margin-top:40px}
+/* ✅ CENTRADO TOTAL */
+.welcomeWrap{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:40px;
+  pointer-events:none;
+}
 .welcomeBig{
-  font-size:48px;
+  font-size:56px;
   font-weight:900;
-  background:linear-gradient(135deg,var(--gold),#fff);
+  line-height:1.15;
+  background:linear-gradient(135deg,var(--gold),#ffffff);
   -webkit-background-clip:text;
   color:transparent;
-  opacity:.25;
-  transition:.4s;
+  opacity:.18;
+  transition:.45s;
+  max-width:900px;
 }
-.welcomeBig.pop{transform:scale(1.08);opacity:1}
-.welcomeSub{opacity:.6;margin-top:6px}
+.welcomeBig.pop{
+  transform:scale(1.08);
+  opacity:1;
+}
 
 .ticker{
   position:absolute;
