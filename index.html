@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Nexus Churchs — Display WOW</title>
+<title>Nexus Churchs — WOW Display</title>
 
 <link rel="stylesheet" href="styles.css">
 
@@ -19,13 +19,22 @@
     <div class="logo">NC</div>
     <div>
       <div class="brandTitle">Nexus Churchs</div>
-      <div class="brandSub">WOW Display Mode</div>
+      <div class="brandSub">WOW Display Mode · Realtime</div>
     </div>
   </div>
 
-  <div class="kpiBox">
-    Total
-    <b id="totalCount">0</b>
+  <div class="topActions">
+    <div class="chip">
+      <span class="chipLabel">Iglesia</span>
+      <select id="churchSelect" title="Selecciona la iglesia"></select>
+    </div>
+
+    <button id="btnCopyLink" class="ghost" type="button">Copiar Link</button>
+
+    <div class="kpiBox">
+      Total
+      <b id="totalCount">0</b>
+    </div>
   </div>
 </header>
 
@@ -48,25 +57,26 @@
       </div>
 
       <input id="partySize" type="number" value="1" min="1">
-
       <button>Registrar</button>
     </form>
+
+    <div class="hint">
+      Tip: abre el mismo link en celular/iPad/laptop y verás todo en vivo.
+    </div>
   </section>
 
   <!-- DISPLAY WOW -->
   <section class="card display wow" id="displayCard">
-
-    <button id="btnFullscreen" class="ghost fsBtn">⛶</button>
+    <button id="btnFullscreen" class="ghost fsBtn" type="button">⛶</button>
 
     <div class="welcomeWrap">
       <div id="welcomeBig" class="welcomeBig">Bienvenidos</div>
-      <div class="welcomeSub">Nos alegra su visita</div>
+      <div class="welcomeSub" id="welcomeSub">Nos alegra su visita</div>
     </div>
 
     <div class="ticker">
       <div id="tickerTrack" class="tickerTrack"></div>
     </div>
-
   </section>
 
 </div>
