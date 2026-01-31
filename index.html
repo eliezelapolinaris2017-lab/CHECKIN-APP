@@ -19,40 +19,58 @@
     <div class="logo">NC</div>
     <div>
       <div class="brandTitle">Nexus Churchs</div>
-      <div class="brandSub">Sistema Multi-Iglesias · Check-In</div>
+      <div class="brandSub">Multi-Iglesias · Tablet Check-In · Realtime Display</div>
     </div>
   </div>
 
   <div class="kpiBox">
-    Total Hoy
+    Total Evento
     <b id="totalCount">0</b>
   </div>
 </header>
 
 <div class="grid">
 
-  <!-- REGISTRO TABLET -->
+  <!-- CONTROL / ADMIN LIGERO (MVP) -->
   <section class="card">
-    <h2>Registro de Asistencia</h2>
+    <h2>Control</h2>
+
+    <div class="row">
+      <label>Iglesia</label>
+      <select id="churchSelect"></select>
+    </div>
+
+    <div class="row">
+      <label>Evento</label>
+      <div class="eventLine">
+        <div id="eventStatus" class="pill">Cargando…</div>
+        <button id="btnOpenEvent" type="button">Abrir Evento</button>
+        <button id="btnCloseEvent" type="button" class="ghost">Cerrar</button>
+      </div>
+      <div class="muted" id="eventMeta">—</div>
+    </div>
+
+    <hr class="sep">
+
+    <h2>Registro (Tablet)</h2>
 
     <form id="checkinForm" autocomplete="off">
-      <input id="fullName" placeholder="Nombre y Apellido" required>
-      <div class="error" id="nameError" hidden>
-        Requerido: nombre + apellido real
-      </div>
+      <input id="fullName" placeholder="Nombre y Apellido (obligatorio)" required>
+      <div class="error" id="nameError" hidden>Requerido: nombre + apellido real (mínimo 2 palabras).</div>
 
       <input id="partySize" type="number" value="1" min="1">
-      <button>Registrar Entrada</button>
+      <button id="btnCheckin">Registrar Entrada</button>
     </form>
 
-    <div class="hint">
-      Operación tablet optimizada · captura rápida
-    </div>
+    <div class="hint">Operación tablet: rápido, directo, sin fricción. Pero con apellido.</div>
   </section>
 
   <!-- DISPLAY -->
-  <section class="card display">
-    <h2>Panel en Vivo</h2>
+  <section class="card display" id="displayCard">
+    <div class="displayTop">
+      <h2>Panel en Vivo</h2>
+      <button id="btnFullscreen" class="ghost" type="button">Pantalla Completa</button>
+    </div>
 
     <div id="welcome" class="welcome">—</div>
 
@@ -66,6 +84,8 @@
       </thead>
       <tbody id="rows"></tbody>
     </table>
+
+    <div class="muted small" id="displayFooter">—</div>
   </section>
 
 </div>
