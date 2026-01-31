@@ -25,6 +25,9 @@ const btnCloseSession= document.getElementById("btnCloseSession");
 const sessionTitle   = document.getElementById("sessionTitle");
 const sessionMeta    = document.getElementById("sessionMeta");
 
+const wowSeconds     = document.getElementById("wowSeconds");
+const btnApplyWow    = document.getElementById("btnApplyWow");
+
 const form           = document.getElementById("checkinForm");
 const fullNameInput  = document.getElementById("fullName");
 const partySizeInput = document.getElementById("partySize");
@@ -49,6 +52,10 @@ btnFullscreen.onclick = ()=> displayCard.classList.toggle("fullscreen");
 /******** CHANNEL (URL ONLY) ********/
 const params = new URLSearchParams(location.search);
 let churchId = (params.get("church") || "demo").trim();
+
+/******** WOW DURATION (URL: wow=segundos) ********/
+let WOW_MS = toInt(params.get("wow"), 6) * 1000;
+wowSeconds.value = String(Math.max(1, Math.min(30, Math.round(WOW_MS / 1000))));
 
 /******** STATE ********/
 let activeEventId = null;
@@ -97,7 +104,7 @@ async function loadChurches(){
 
   if(!found){
     churchId = churchSelect.options[0].value;
-    replaceChurchInUrl(churchId);
+    replaceParamInUrl("church", churchId);
   }
 
   churchSelect.value = churchId;
@@ -106,12 +113,12 @@ async function loadChurches(){
 /******** UI ********/
 function bindUI(){
   churchSelect.onchange = ()=>{
-    replaceChurchInUrl(churchSelect.value);
+    replaceParamInUrl("church", churchSelect.value);
     location.reload();
   };
 
   btnCopyLink.onclick = async ()=>{
-    const url = buildChurchUrl(churchId);
+    const url = location.href;
     try{
       await navigator.clipboard.writeText(url);
       btnCopyLink.textContent = "Link Copiado ✅";
@@ -123,6 +130,12 @@ function bindUI(){
 
   btnOpenSession.onclick = openSession;
   btnCloseSession.onclick = closeSession;
+
+  btnApplyWow.onclick = ()=>{
+    const sec = clamp(toInt(wowSeconds.value, 6), 1, 30);
+    replaceParamInUrl("wow", String(sec));
+    location.reload(); // para que todos al abrir ese link tengan el mismo tiempo
+  };
 
   form.onsubmit = submitCheckin;
 }
@@ -166,7 +179,6 @@ function renderSessionState(){
 async function openSession(){
   const title = clean(sessionTitle.value || "");
   const finalTitle = title || `Servicio ${new Date().toLocaleDateString()}`;
-
   const date = new Date().toISOString().slice(0,10);
 
   const evRef = db.collection("churches").doc(churchId)
@@ -237,7 +249,7 @@ function mountCheckinsRealtime(){
         .map(n=>`<span class="tickerItem">${escapeHtml(n)}</span>`)
         .join("");
 
-      // WOW GLOBAL
+      // ✅ WOW GLOBAL SYNC: todos los dispositivos hacen POP
       if(newestId && newestData && newestData.fullName){
         if(firstLoad){
           firstLoad = false;
@@ -245,7 +257,7 @@ function mountCheckinsRealtime(){
           welcomeBig.textContent = "Bienvenidos";
         } else if(newestId !== lastWelcomeId){
           lastWelcomeId = newestId;
-          popWelcome(newestData.fullName); // ⏱️ 6s
+          popWelcome(newestData.fullName);
         }
       }
 
@@ -324,7 +336,6 @@ function mountHistoryRealtime(){
         historyList.appendChild(div);
       });
 
-      // bind PDF buttons
       historyList.querySelectorAll("button[data-pdf]").forEach(btn=>{
         btn.onclick = ()=> exportEventPDF(btn.getAttribute("data-pdf"));
       });
@@ -375,7 +386,6 @@ async function exportEventPDF(eventId){
   pdf.text(`Fecha: ${date}`, 40, y); y += 16;
   pdf.text(`Total asistencia: ${total}`, 40, y); y += 24;
 
-  // Tabla simple (sin autotable para mantenerlo liviano)
   pdf.setFont("helvetica","bold");
   pdf.text("#", 40, y);
   pdf.text("Hora", 70, y);
@@ -413,11 +423,12 @@ function safeFile(s){
   return String(s || "").replace(/[^\w\-]+/g,"_").slice(0,40);
 }
 
-/******** WOW WELCOME (6s) ********/
+/******** WOW WELCOME (CENTRADO + CONFIGURABLE) ********/
 function popWelcome(name){
   if(welcomeTimer) clearTimeout(welcomeTimer);
 
-  welcomeBig.textContent = "Bienvenido " + name;
+  // ✅ mismo centro: “Bienvenidos Nombre Apellido”
+  welcomeBig.textContent = "Bienvenidos " + name;
 
   welcomeBig.classList.remove("pop");
   void welcomeBig.offsetWidth;
@@ -426,21 +437,23 @@ function popWelcome(name){
   welcomeTimer = setTimeout(()=>{
     welcomeBig.classList.remove("pop");
     welcomeBig.textContent = "Bienvenidos";
-  }, 6000);
+  }, WOW_MS);
 }
 
-/******** HELPERS ********/
-function replaceChurchInUrl(id){
+/******** URL HELPERS ********/
+function replaceParamInUrl(key, value){
   const u = new URL(location.href);
-  u.searchParams.set("church", id);
+  u.searchParams.set(key, value);
   history.replaceState({}, "", u.toString());
 }
-function buildChurchUrl(id){
-  const u = new URL(location.href);
-  u.searchParams.set("church", id);
-  return u.toString();
-}
 
+function toInt(v, fallback){
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+/******** TEXT HELPERS ********/
 function clean(v){ return String(v || "").replace(/\s+/g," ").trim(); }
 function validFullName(name){
   const p = name.split(" ").filter(Boolean);
