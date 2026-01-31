@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Check-In Multi Iglesia</title>
+
+<link rel="stylesheet" href="styles.css">
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+
+<body>
+
+<header class="topbar">
+<h1>Check-In Servicio</h1>
+<div id="kpi">Total Hoy: <b id="totalCount">0</b></div>
+</header>
+
+<div class="grid">
+
+<!-- TABLET REGISTRO -->
+<section class="card">
+<h2>Registro</h2>
+
+<form id="checkinForm">
+<input id="fullName" placeholder="Nombre completo" required>
+<input id="partySize" type="number" value="1" min="1">
+<button>Registrar</button>
+</form>
+
+<div class="hint">Modo tablet — rápido y sin fricción</div>
+</section>
+
+<!-- PANTALLA PRINCIPAL -->
+<section class="card display">
+<h2>Pantalla en Vivo</h2>
+
+<div id="welcome" class="welcome">—</div>
+
+<table>
+<thead>
+<tr>
+<th>Hora</th>
+<th>Nombre</th>
+<th>#</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+</section>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
