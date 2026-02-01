@@ -1,0 +1,6 @@
+{
+  "items": [
+    { "path": "assets/verses/salmos/23/1.json", "ref": "Salmo 23:1", "text": "El Señor es mi pastor; nada me faltará." },
+    { "path": "assets/verses/juan/3/16.json", "ref": "Juan 3:16", "text": "Porque de tal manera amó Dios al mundo..." }
+  ]
+}
