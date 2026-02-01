@@ -1,0 +1,349 @@
+:root{
+  --bg:#0a0a0a;
+  --bg2:#0f0f0f;
+  --card:rgba(255,255,255,.06);
+  --line:rgba(255,255,255,.10);
+  --text:rgba(255,255,255,.92);
+  --muted:rgba(255,255,255,.65);
+  --gold:#d6b15a;
+  --bad:#ff5c5c;
+  --ok:#37d67a;
+  --shadow:0 18px 60px rgba(0,0,0,.55);
+  --r:18px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
+  background: radial-gradient(1200px 700px at 30% 10%, rgba(214,177,90,.12), transparent 55%),
+              radial-gradient(900px 600px at 80% 20%, rgba(255,255,255,.07), transparent 55%),
+              linear-gradient(180deg, var(--bg), var(--bg2));
+  color:var(--text);
+}
+
+a{color:inherit}
+button,input,select{font:inherit}
+
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-bottom:1px solid var(--line);
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top:0;
+  z-index: 50;
+}
+
+.brand{display:flex; align-items:center; gap:12px}
+.logoBox{
+  width:44px;height:44px;border-radius:14px;
+  display:grid;place-items:center;
+  background: linear-gradient(180deg, rgba(214,177,90,.30), rgba(255,255,255,.06));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
+.brandIcon{width:34px;height:34px;object-fit:contain}
+.logoBox.fallback .fallbackText{display:block}
+.fallbackText{display:none;font-weight:800;color:var(--gold);letter-spacing:.5px}
+
+.brandTitle{font-weight:800; letter-spacing:.3px}
+.brandSub{font-size:12px;color:var(--muted); margin-top:2px}
+
+.topRight{display:flex;align-items:center;gap:10px}
+
+.chip{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background: rgba(255,255,255,.04);
+}
+.chipLabel{font-size:12px;color:var(--muted)}
+select{
+  background: transparent;
+  color: var(--text);
+  border:0;
+  outline:none;
+}
+
+.iconBtn{
+  width:40px;height:40px;border-radius:12px;
+  border:1px solid var(--line);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  cursor:pointer;
+}
+.iconBtn:hover{border-color: rgba(214,177,90,.45)}
+
+.kpi{
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(214,177,90,.25);
+  background: rgba(214,177,90,.10);
+  font-size:12px;
+  color: var(--muted);
+}
+.kpi b{
+  color: var(--text);
+  margin-left:8px;
+  font-size:16px;
+}
+
+.tabs{
+  display:flex;
+  gap:8px;
+  padding:10px 14px;
+  border-bottom:1px solid var(--line);
+  background: rgba(0,0,0,.25);
+  position: sticky;
+  top:70px;
+  z-index: 40;
+}
+.tabBtn{
+  flex:1;
+  padding:10px 12px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background: rgba(255,255,255,.04);
+  color: var(--text);
+  cursor:pointer;
+}
+.tabBtn.active{
+  border-color: rgba(214,177,90,.55);
+  background: rgba(214,177,90,.18);
+}
+
+.wrap{max-width:1050px;margin:16px auto;padding:0 14px 26px}
+.card{
+  background: var(--card);
+  border:1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding:16px;
+}
+
+.tab{display:none}
+.tab.active{display:block}
+
+h2{margin:0 0 8px 0}
+h3{margin:14px 0 6px 0; font-size:15px; color:var(--gold)}
+.hint{font-size:12px;color:var(--muted)}
+.error{margin-top:10px;color:var(--bad);font-weight:700}
+
+.row2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+  margin-top:10px;
+}
+@media (max-width:720px){ .row2{grid-template-columns:1fr} }
+
+input{
+  width:100%;
+  padding:12px 12px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background: rgba(0,0,0,.25);
+  color: var(--text);
+  outline:none;
+}
+input:focus{border-color: rgba(214,177,90,.55)}
+
+button{
+  padding:12px 12px;
+  border-radius:14px;
+  border:1px solid rgba(214,177,90,.35);
+  background: rgba(214,177,90,.18);
+  color: var(--text);
+  cursor:pointer;
+  font-weight:800;
+}
+button:hover{border-color: rgba(214,177,90,.65)}
+button.ghost{
+  border:1px solid var(--line);
+  background: rgba(255,255,255,.04);
+}
+
+.sep{
+  border:0;
+  height:1px;
+  background: var(--line);
+  margin:14px 0;
+}
+
+.sessionBar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:10px 0 10px;
+}
+.pill{
+  padding:8px 10px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:12px;
+  border:1px solid var(--line);
+}
+.pill.ok{background: rgba(55,214,122,.12); border-color: rgba(55,214,122,.35); color:rgba(255,255,255,.92)}
+.pill.bad{background: rgba(255,92,92,.10); border-color: rgba(255,92,92,.35); color:rgba(255,255,255,.92)}
+
+.history{display:grid; gap:10px; margin-top:10px}
+.hItem{
+  border:1px solid var(--line);
+  border-radius: 16px;
+  padding:12px;
+  background: rgba(0,0,0,.18);
+}
+.hTop{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+.hTitle{font-weight:900}
+.hMeta{font-size:12px; color:var(--muted); margin-top:4px}
+.hBtns{display:flex; gap:8px}
+.hBtns .ghost{padding:10px 12px; border-radius:14px}
+
+/* WOW stage */
+.wowStage{
+  position: relative;
+  height: 62vh;
+  min-height: 420px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  overflow: hidden;
+  background:
+    radial-gradient(800px 520px at 40% 25%, rgba(214,177,90,.14), transparent 55%),
+    radial-gradient(900px 600px at 70% 50%, rgba(255,255,255,.06), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,.65), rgba(0,0,0,.90));
+}
+
+.welcomeWrap{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  padding: 20px;
+}
+
+.welcomeBig{
+  text-align:center;
+  font-weight: 1000;
+  letter-spacing: .3px;
+  color: rgba(255,255,255,.92);
+  font-size: clamp(34px, 5vw, 78px);
+  text-shadow: 0 18px 60px rgba(0,0,0,.8);
+}
+
+.welcomeBig.pop{
+  animation: popIn .25s ease-out;
+}
+@keyframes popIn{
+  from{transform: scale(.96); opacity:.75}
+  to{transform: scale(1); opacity:1}
+}
+
+.ticker{
+  position:absolute;
+  left:0; right:0; bottom:0;
+  padding: 10px 0;
+  border-top:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.45);
+  overflow:hidden;
+}
+.tickerTrack{
+  display:flex;
+  gap:16px;
+  white-space: nowrap;
+  will-change: transform;
+  animation: ticker 24s linear infinite;
+}
+@keyframes ticker{
+  from{transform: translateX(0)}
+  to{transform: translateX(-50%)}
+}
+.tickerItem{
+  font-size: 14px;
+  color: rgba(255,255,255,.75);
+  padding: 6px 10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius: 999px;
+  background: rgba(255,255,255,.04);
+}
+
+.wowExitBtn{
+  position:absolute;
+  top:12px; right:12px;
+  width:48px; height:48px;
+  border-radius: 14px;
+  border:1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.40);
+  font-size:20px;
+  cursor:pointer;
+  z-index: 2;
+}
+
+/* WOW FULLSCREEN: mata header/tabs y deja solo WOW */
+body.wow-fullscreen .topbar,
+body.wow-fullscreen .tabs,
+body.wow-fullscreen .wrap{display:none !important;}
+
+body.wow-fullscreen #tab-wow{
+  display:block !important;
+  position: fixed;
+  inset:0;
+  margin:0;
+  padding:0;
+  border-radius:0;
+  border:0;
+  background: transparent;
+  z-index: 99990;
+}
+body.wow-fullscreen .wowStage{
+  height: 100vh;
+  min-height: 100vh;
+  border-radius:0;
+  border:0;
+}
+
+/* PIN overlay: SIEMPRE por encima y clickeable */
+.pinOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.70);
+  backdrop-filter: blur(10px);
+}
+.pinCard{
+  width: min(420px, 92vw);
+  background: rgba(20,20,20,.92);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 22px 80px rgba(0,0,0,.65);
+}
+.pinTitle{font-weight:1000; font-size:18px}
+.pinSub{margin-top:6px; color:var(--muted); font-size:12px}
+.pinCard input{margin-top:12px}
+.pinCard button{margin-top:12px; width:100%}
+.pinError{margin-top:10px; color:var(--bad); font-weight:900}
+.pinHint{margin-top:10px; font-size:12px; color:var(--muted)}
+
+/* locked: bloquea app pero NO el overlay */
+body.locked .topbar,
+body.locked .tabs,
+body.locked main{
+  pointer-events:none;
+  filter: blur(2px);
+  opacity:.75;
+}
+body.locked .pinOverlay{
+  pointer-events:auto;
+  filter:none;
+  opacity:1;
+}
