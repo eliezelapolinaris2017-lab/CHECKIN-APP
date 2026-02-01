@@ -1,6 +1,54 @@
 {
   "items": [
-    { "path": "assets/verses/salmos/23/1.json", "ref": "Salmo 23:1", "text": "El Señor es mi pastor; nada me faltará." },
-    { "path": "assets/verses/juan/3/16.json", "ref": "Juan 3:16", "text": "Porque de tal manera amó Dios al mundo..." }
+    {
+      "path": "assets/verses/psalmo_23_1.json",
+      "ref": "Salmo 23:1",
+      "text": "Jehová es mi pastor; nada me faltará."
+    },
+    {
+      "path": "assets/verses/juan_3_16.json",
+      "ref": "Juan 3:16",
+      "text": "Porque de tal manera amó Dios al mundo, que ha dado a su Hijo unigénito."
+    },
+    {
+      "path": "assets/verses/proverbios_3_5.json",
+      "ref": "Proverbios 3:5",
+      "text": "Confía en Jehová de todo tu corazón, y no te apoyes en tu prudencia."
+    },
+    {
+      "path": "assets/verses/filipenses_4_13.json",
+      "ref": "Filipenses 4:13",
+      "text": "Todo lo puedo en Aquel que me fortalece."
+    },
+    {
+      "path": "assets/verses/salmo_91_1.json",
+      "ref": "Salmo 91:1",
+      "text": "El que habita al abrigo del Altísimo morará bajo la sombra del Omnipotente."
+    },
+    {
+      "path": "assets/verses/jeremias_29_11.json",
+      "ref": "Jeremías 29:11",
+      "text": "Porque yo sé los pensamientos que tengo acerca de vosotros, dice Jehová."
+    },
+    {
+      "path": "assets/verses/romanos_8_28.json",
+      "ref": "Romanos 8:28",
+      "text": "A los que a Dios aman, todas las cosas les ayudan a bien."
+    },
+    {
+      "path": "assets/verses/salmo_27_1.json",
+      "ref": "Salmo 27:1",
+      "text": "Jehová es mi luz y mi salvación; ¿de quién temeré?"
+    },
+    {
+      "path": "assets/verses/isaias_41_10.json",
+      "ref": "Isaías 41:10",
+      "text": "No temas, porque yo estoy contigo; no desmayes, porque yo soy tu Dios."
+    },
+    {
+      "path": "assets/verses/mateo_11_28.json",
+      "ref": "Mateo 11:28",
+      "text": "Venid a mí todos los que estáis trabajados y cargados, y yo os haré descansar."
+    }
   ]
 }
