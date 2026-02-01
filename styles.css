@@ -347,3 +347,69 @@ body.locked .pinOverlay{
   filter:none;
   opacity:1;
 }
+/* =========================
+   WOW FULLSCREEN FIX (iPhone/iPad/PC)
+   - Evita pantalla blanca
+   - Oculta header/tabs y TODO menos WOW
+========================= */
+
+html, body { height: 100%; }
+body.wow-fullscreen{
+  background:#000 !important;
+  overflow:hidden !important;
+}
+
+/* Apaga UI completa */
+body.wow-fullscreen .topbar,
+body.wow-fullscreen .tabs{
+  display:none !important;
+}
+
+/* No escondas el main completo (si lo escondes, WOW muere) */
+body.wow-fullscreen .wrap{
+  padding:0 !important;
+  margin:0 !important;
+  max-width:none !important;
+}
+
+/* Apaga todas las tabs EXCEPTO WOW */
+body.wow-fullscreen .tab{
+  display:none !important;
+}
+body.wow-fullscreen #tab-wow{
+  display:block !important;
+}
+
+/* WOW Stage “pegado” a pantalla completa */
+body.wow-fullscreen #tab-wow,
+body.wow-fullscreen #wowStage{
+  position:fixed !important;
+  inset:0 !important;          /* top/right/bottom/left 0 */
+  width:100vw !important;
+  height:100vh !important;
+  margin:0 !important;
+  border-radius:0 !important;
+  background:#000 !important;
+  z-index:99999 !important;
+}
+
+/* Asegura que el texto se vea */
+body.wow-fullscreen .welcomeWrap{
+  position:absolute !important;
+  inset:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  padding:24px !important;
+}
+body.wow-fullscreen .welcomeBig{
+  color:#fff !important;
+}
+
+/* Botón de salir SIEMPRE visible */
+body.wow-fullscreen .wowExitBtn{
+  position:absolute !important;
+  top:16px !important;
+  right:16px !important;
+  z-index:100000 !important;
+}
