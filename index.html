@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Nexus Churchs</title>
+
+  <link rel="stylesheet" href="styles.css?v=3001"/>
+
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logoBox" aria-hidden="true">
+      <img class="brandIcon" src="assets/icon.png" alt=""
+           onerror="this.style.display='none'; this.parentElement.classList.add('fallback');">
+      <span class="fallbackText">NC</span>
+    </div>
+
+    <div>
+      <div class="brandTitle">Nexus Churchs</div>
+      <div class="brandSub" id="brandSub">Registro · WOW · Config · Historial</div>
+    </div>
+  </div>
+
+  <div class="topRight">
+    <div class="chip">
+      <span class="chipLabel">Iglesia</span>
+      <select id="churchSelect"></select>
+    </div>
+
+    <button id="btnLock" class="iconBtn" type="button" title="Bloquear">🔒</button>
+
+    <div class="kpi">
+      Total Sesión
+      <b id="kpiTotal">0</b>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tabBtn active" data-tab="register" role="tab" aria-selected="true">Registro</button>
+  <button class="tabBtn" data-tab="wow" role="tab" aria-selected="false">WOW</button>
+  <button class="tabBtn" data-tab="config" role="tab" aria-selected="false">Configuración</button>
+  <button class="tabBtn" data-tab="history" role="tab" aria-selected="false">Historial</button>
+</nav>
+
+<main class="wrap">
+
+  <!-- TAB: REGISTRO -->
+  <section class="card tab active" id="tab-register" data-tabpanel="register" role="tabpanel">
+    <h2>Registro</h2>
+    <div class="hint">Nombre + Apellido requerido. Pueblo opcional. Teléfono y petición opcionales.</div>
+
+    <form id="formCheckin" autocomplete="off">
+      <div class="row2">
+        <div>
+          <div class="hint">Nombre</div>
+          <input id="firstName" placeholder="Ej: Juan" required>
+        </div>
+        <div>
+          <div class="hint">Apellido</div>
+          <input id="lastName" placeholder="Ej: Pérez" required>
+        </div>
+      </div>
+
+      <div>
+        <div class="hint">Pueblo (opcional)</div>
+        <input id="town" placeholder="Ej: Bayamón">
+      </div>
+
+      <div class="row2">
+        <div>
+          <div class="hint">Teléfono (opcional)</div>
+          <input id="phone" inputmode="tel" placeholder="Ej: 7875551234">
+        </div>
+        <div>
+          <div class="hint">Cantidad</div>
+          <input id="partySize" type="number" min="1" value="1">
+        </div>
+      </div>
+
+      <div>
+        <div class="hint">Petición de oración (opcional)</div>
+        <textarea id="prayerRequest" rows="3" placeholder="Escribe aquí…"></textarea>
+      </div>
+
+      <div class="row2">
+        <div>
+          <div class="hint">Acción</div>
+          <button type="submit">Registrar</button>
+        </div>
+        <div>
+          <div class="hint">Estado</div>
+          <div class="hint" id="checkinStatus">—</div>
+        </div>
+      </div>
+
+      <div id="errCheckin" class="error" hidden></div>
+    </form>
+  </section>
+
+  <!-- TAB: WOW -->
+  <section class="card tab" id="tab-wow" data-tabpanel="wow" role="tabpanel">
+    <div class="wowStage" id="wowStage">
+      <!-- ÚNICO control visible en fullscreen -->
+      <button class="wowExitBtn" id="btnWowFullscreen" type="button" aria-label="Entrar a pantalla completa">⛶</button>
+
+      <div class="welcomeWrap">
+        <div class="welcomeBig" id="welcomeBig">Bienvenidos</div>
+
+        <!-- Versículo (queue) -->
+        <div class="verseLine" id="verseLine" hidden></div>
+        <div class="verseRef" id="verseRef" hidden></div>
+      </div>
+
+      <!-- ticker track (si decides usarlo, el JS lo deja vacío) -->
+      <div class="ticker" hidden>
+        <div class="tickerTrack" id="tickerTrack"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB: CONFIG -->
+  <section class="card tab" id="tab-config" data-tabpanel="config" role="tabpanel">
+    <h2>Configuración</h2>
+
+    <h3>Tiempo WOW ⏱️</h3>
+    <div class="row2">
+      <div>
+        <div class="hint">Segundos (1–30)</div>
+        <input id="wowSeconds" type="number" min="1" max="30" value="6">
+      </div>
+      <div>
+        <div class="hint">Guardar</div>
+        <button class="ghost" id="btnSaveWow" type="button">Actualizar</button>
+      </div>
+    </div>
+    <div class="hint" id="wowSavedMsg">—</div>
+
+    <hr class="sep">
+
+    <h3>WOW — Verses (Catálogo JSON)</h3>
+    <div class="hint">Lee automáticamente: <b>assets/verses/index.json</b></div>
+
+    <div class="row2">
+      <div>
+        <div class="hint">Selecciona versículo</div>
+        <select id="verseSelect"></select>
+      </div>
+      <div>
+        <div class="hint">Duración en pantalla (seg)</div>
+        <input id="verseDuration" type="number" min="3" max="120" value="12">
+      </div>
+    </div>
+
+    <div class="hint" id="versePreview">—</div>
+
+    <div class="row2">
+      <div>
+        <div class="hint">Acciones</div>
+        <button class="ghost" id="btnAddToQueue" type="button">+ Añadir a cola</button>
+      </div>
+      <div>
+        <div class="hint">Cola</div>
+        <div class="row2">
+          <button class="ghost" id="btnClearQueue" type="button">Vaciar</button>
+          <span class="hint" id="queueCount">Cola: 0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <div class="hint">Rotación</div>
+        <button id="btnStartQueue" type="button">▶ Iniciar</button>
+      </div>
+      <div>
+        <div class="hint">Pausar</div>
+        <button class="ghost" id="btnStopQueue" type="button">⏸ Pausar</button>
+      </div>
+    </div>
+
+    <div class="hint" id="queueMsg">—</div>
+
+    <hr class="sep">
+
+    <h3>Nueva iglesia</h3>
+    <div class="row2">
+      <div>
+        <div class="hint">Nombre</div>
+        <input id="newChurchName" placeholder="Ej: Iglesia Casa de Bendición">
+      </div>
+      <div>
+        <div class="hint">Crear</div>
+        <button id="btnCreateChurch" type="button">+ Nueva</button>
+      </div>
+    </div>
+    <div class="hint" id="createChurchMsg">—</div>
+
+    <hr class="sep">
+
+    <h3>Sección / Sesión</h3>
+    <div class="sessionBar">
+      <div id="sessionPill" class="pill bad">CERRADA</div>
+      <button id="btnOpenSession" type="button">Abrir</button>
+      <button id="btnCloseSession" type="button" class="ghost" disabled>Cerrar</button>
+    </div>
+
+    <div>
+      <div class="hint">Nombre de la sesión (ej: Domingo 10AM)</div>
+      <input id="sessionTitle" placeholder="Ej: Domingo 10AM">
+      <div class="hint" id="sessionMeta">—</div>
+    </div>
+
+    <hr class="sep">
+
+    <h3>Seguridad (PIN por iglesia)</h3>
+    <div class="hint">Default por iglesia si no existe: <b>1234</b>. Cambia el PIN aquí.</div>
+
+    <div class="row2">
+      <div>
+        <div class="hint">PIN actual</div>
+        <input id="pinCurrent" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 dígitos">
+      </div>
+      <div>
+        <div class="hint">Nuevo PIN</div>
+        <input id="pinNew" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 dígitos">
+      </div>
+    </div>
+    <button id="btnSavePin" type="button">Guardar PIN</button>
+    <div class="hint" id="pinSavedMsg">—</div>
+  </section>
+
+  <!-- TAB: HISTORIAL -->
+  <section class="card tab" id="tab-history" data-tabpanel="history" role="tabpanel">
+    <h2>Historial</h2>
+    <div class="hint">Asistencia por sesión. Exporta PDF (incluye teléfono + petición).</div>
+    <div id="historyList" class="history"></div>
+  </section>
+
+</main>
+
+<!-- Audio WOW -->
+<audio id="wowAudio" preload="auto" loop playsinline>
+  <source src="assets/wow.mp3" type="audio/mpeg">
+</audio>
+
+<!-- PIN LOCK OVERLAY -->
+<div id="pinOverlay" class="pinOverlay" hidden>
+  <div class="pinCard">
+    <div class="pinTitle">Acceso restringido</div>
+    <div class="pinSub" id="pinSub">PIN requerido</div>
+
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" placeholder="PIN (4–6 dígitos)" />
+    <button id="btnPinUnlock" type="button">Entrar</button>
+    <div id="pinError" class="pinError" hidden></div>
+
+    <div class="pinHint">
+      Tip: si el PIN no existe todavía, el default es <b>1234</b>.
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=3001"></script>
+</body>
+</html>
