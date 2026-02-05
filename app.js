@@ -1,20 +1,17 @@
 "use strict";
 
 /* ==========================================================
-   Nexus Churchs — app.js (FULL)
-   - PIN blindado por iglesia (default 1234)
-   - WOW fullscreen + audio fade
-   - Checkins realtime (KPI + welcome)
-   - Verses: lee assets/verses/index.json (catálogo)
-   - Queue rotativa sincronizada por iglesia en Firestore
-   - Registro: Nombre/Apellido requerido + Pueblo opcional
-             + Teléfono opcional + Petición de oración opcional
-   - PDF historial incluye Teléfono + Petición
+   Nexus Churchs — app.js (FULL / FIX)
+   ✅ PIN blindado por iglesia (default 1234)
+   ✅ Verses híbrido: Firebase primero, GitHub fallback
+   ✅ Queue sincronizada en Firestore (wowQueue / queueEnabled / queueIndex)
+   ✅ Pausa de verse cuando entra un nuevo visitante (anti-choque)
+   ✅ Sin ticker de nombres (eliminado)
+   ✅ Teléfono + petición opcional (se guardan y salen en PDF)
+   ✅ WOW fullscreen + audio fade
 ========================================================== */
 
-if (window.__NEXUS_CHURCHS_LOADED__) {
-  throw new Error("Duplicated app.js execution");
-}
+if (window.__NEXUS_CHURCHS_LOADED__) throw new Error("Duplicated app.js execution");
 window.__NEXUS_CHURCHS_LOADED__ = true;
 
 /******** FIREBASE CONFIG (INTACTO) ********/
@@ -68,17 +65,14 @@ const firstName = document.getElementById("firstName");
 const lastName  = document.getElementById("lastName");
 const town      = document.getElementById("town");
 const partySize = document.getElementById("partySize");
-
-// ✅ nuevos
-const phone = document.getElementById("phone");
-const prayerRequest = document.getElementById("prayerRequest");
-
+const phone     = document.getElementById("phone");          // ✅ opcional
+const prayerRequest = document.getElementById("prayerRequest"); // ✅ opcional
 const errCheckin = document.getElementById("errCheckin");
 const checkinStatus = document.getElementById("checkinStatus");
 
 const btnWowFullscreen = document.getElementById("btnWowFullscreen");
 const welcomeBig = document.getElementById("welcomeBig");
-const tickerTrack = document.getElementById("tickerTrack");
+const tickerTrack = document.getElementById("tickerTrack"); // exists pero no lo usamos
 const wowAudio = document.getElementById("wowAudio");
 
 const wowSeconds = document.getElementById("wowSeconds");
@@ -114,7 +108,7 @@ const pinNew = document.getElementById("pinNew");
 const btnSavePin = document.getElementById("btnSavePin");
 const pinSavedMsg = document.getElementById("pinSavedMsg");
 
-/* (Opcional) Verses/Queue UI — si no existe en tu index, no rompe */
+/* VERSES DOM (config) */
 const verseSelect = document.getElementById("verseSelect");
 const versePreview = document.getElementById("versePreview");
 const verseDuration = document.getElementById("verseDuration");
@@ -149,12 +143,19 @@ const FADE_MS = 1000;
 /* PIN */
 let pinHashFromDB = "";
 
-/* Verses */
+/* VERSES catalog + queue */
 let VERSES_CATALOG = []; // [{path, ref, text}]
-let WOW_QUEUE = [];      // [{path, ref, duration}]
+let WOW_QUEUE = [];      // [{path, ref, duration, text?}]
 let queueEnabled = false;
 let queueIndex = 0;
 let queueTimer = null;
+
+/* Verse pause when new visitor */
+let versePausedUntil = 0;
+
+/* Firebase verse “truth” (si existía en tu versión anterior) */
+let firebaseVerseText = "";
+let firebaseVerseRef = "";
 
 /******** INIT ********/
 init().catch(console.error);
@@ -167,11 +168,14 @@ async function init(){
   });
 
   await loadChurches();
-  await loadVersesCatalog();   // si no tienes dropdown, no hace nada
+  await loadVersesCatalog();   // dropdown desde index.json (si existe)
 
   bindActions();
   bindPinEvents();
   watchChurch();
+
+  // ticker eliminado
+  if(tickerTrack) tickerTrack.innerHTML = "";
 
   firstName?.focus();
 }
@@ -230,7 +234,7 @@ function toggleWowFullscreen(force){
       }
     }catch(e){}
 
-    renderCurrentQueueItem();
+    renderCurrentVerseNow();
 
   } else {
     document.body.classList.remove("wow-fullscreen");
@@ -291,6 +295,8 @@ async function loadChurches(){
 
 /* =========================
    Watch church doc
+   - PIN + WOW seconds + queue state
+   - Firebase verse override (si existe)
 ========================= */
 function watchChurch(){
   if(unsubChurch) unsubChurch();
@@ -309,18 +315,26 @@ function watchChurch(){
     // PIN
     pinHashFromDB = clean(d.pinHash || "");
 
-    // Queue
+    // Firebase verse override (tu versión anterior “pintaba” desde Firebase)
+    firebaseVerseText = clean(d.wowVerseText || "");
+    firebaseVerseRef  = clean(d.wowVerseRef || "");
+
+    // Queue state
     applyQueueFromChurchDoc(d);
 
     renderSession();
     mountCheckins();
     mountHistory();
 
-    // PIN gate
+    // PIN gate (después de leer pinHashFromDB)
     enforcePin();
+
+    // si estamos en WOW fullscreen, refresca verse
+    renderCurrentVerseNow();
 
   }, ()=>{
     showPinError("No se pudo leer Firebase (reglas/conexión).");
+    showOverlay();
   });
 }
 
@@ -362,6 +376,8 @@ function bindActions(){
           wowQueue: [],
           queueEnabled: false,
           queueIndex: 0,
+          wowVerseText: "",
+          wowVerseRef: "",
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge:true });
 
@@ -413,7 +429,6 @@ function renderSession(){
     if(sessionMeta) sessionMeta.textContent = "No hay sesión abierta.";
     if(checkinStatus) checkinStatus.textContent = "Abre sesión en Configuración para registrar.";
     if(kpiTotal) kpiTotal.textContent="0";
-    if(tickerTrack) tickerTrack.innerHTML="";
     if(welcomeBig) welcomeBig.textContent="Bienvenidos";
   }
 }
@@ -463,10 +478,7 @@ async function submitCheckin(e){
   const l = clean(lastName?.value);
   const t = clean(town?.value);
   const qty = Math.max(1, parseInt(partySize?.value,10) || 1);
-
-  // ✅ opcionales
-  const phRaw = clean(phone?.value);
-  const ph = phRaw ? phRaw.replace(/[^\d+]/g,"") : ""; // soft-clean, no bloquea
+  const ph = clean(phone?.value);
   const pr = clean(prayerRequest?.value);
 
   if(!f || !l){
@@ -488,9 +500,9 @@ async function submitCheckin(e){
       lastName:l,
       fullName:full,
       town: t || "",
-      partySize: qty,
       phone: ph || "",
       prayerRequest: pr || "",
+      partySize: qty,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -506,6 +518,7 @@ async function submitCheckin(e){
 
 /* =========================
    Realtime checkins (KPI + welcome)
+   ✅ PAUSA verses durante WOW_MS para no chocar
 ========================= */
 function mountCheckins(){
   if(unsubCheckins) unsubCheckins();
@@ -533,10 +546,8 @@ function mountCheckins(){
 
       if(kpiTotal) kpiTotal.textContent=String(total);
 
-      // ticker puede existir o no (si lo quieres eliminar, lo dejamos vacío sin romper)
-      if(tickerTrack){
-        tickerTrack.innerHTML = "";
-      }
+      // ticker eliminado
+      if(tickerTrack) tickerTrack.innerHTML = "";
 
       if(newestId && newest && newest.fullName){
         if(firstLoad){
@@ -545,7 +556,15 @@ function mountCheckins(){
           if(welcomeBig) welcomeBig.textContent="Bienvenidos";
         } else if(newestId !== lastWelcomeId){
           lastWelcomeId=newestId;
+
+          // ✅ pausa verse para que no choque con el mensaje
+          versePausedUntil = Date.now() + WOW_MS;
+          hideVerse();
+
           popWelcome(newest.fullName);
+
+          // re-render verse luego de la pausa
+          setTimeout(()=> renderCurrentVerseNow(), WOW_MS + 100);
         }
       }
     }, ()=>{});
@@ -573,7 +592,7 @@ function popWelcome(fullName){
 }
 
 /* =========================
-   History + PDF (incluye Teléfono + Petición)
+   History + PDF (incluye phone + prayer)
 ========================= */
 function mountHistory(){
   if(unsubHistory) unsubHistory();
@@ -662,70 +681,48 @@ async function exportEventPDF(eventId){
   pdf.text(`Fecha: ${date}`, 40, y); y+=16;
   pdf.text(`Total asistencia: ${total}`, 40, y); y+=22;
 
-  // Tabla: # Hora Nombre Pueblo Tel Oración Qty
   pdf.setFont("helvetica","bold");
-  pdf.setFontSize(10);
+  pdf.text("#", 40, y);
+  pdf.text("Hora", 70, y);
+  pdf.text("Nombre", 130, y);
+  pdf.text("Pueblo", 320, y);
+  pdf.text("Tel", 410, y);
+  pdf.text("Qty", 540, y);
+  y+=12;
 
-  const X = { n:40, time:60, name:105, town:260, phone:345, prayer:425, qty:560 };
-
-  pdf.text("#", X.n, y);
-  pdf.text("Hora", X.time, y);
-  pdf.text("Nombre", X.name, y);
-  pdf.text("Pueblo", X.town, y);
-  pdf.text("Tel", X.phone, y);
-  pdf.text("Oración", X.prayer, y);
-  pdf.text("Qty", X.qty, y);
-
-  y+=10;
   pdf.setDrawColor(90);
   pdf.line(40, y, 572, y);
   y+=14;
 
   pdf.setFont("helvetica","normal");
-  pdf.setFontSize(9);
+  pdf.setFontSize(10);
 
   for(const r of rows){
-    if(y>750){
-      pdf.addPage();
-      y=60;
+    if(y>720){ pdf.addPage(); y=60; }
 
-      pdf.setFont("helvetica","bold");
-      pdf.setFontSize(10);
-      pdf.text("#", X.n, y);
-      pdf.text("Hora", X.time, y);
-      pdf.text("Nombre", X.name, y);
-      pdf.text("Pueblo", X.town, y);
-      pdf.text("Tel", X.phone, y);
-      pdf.text("Oración", X.prayer, y);
-      pdf.text("Qty", X.qty, y);
-
-      y+=10;
-      pdf.setDrawColor(90);
-      pdf.line(40, y, 572, y);
-      y+=14;
-
-      pdf.setFont("helvetica","normal");
-      pdf.setFontSize(9);
-    }
-
-    pdf.text(String(r.n), X.n, y);
-    pdf.text(r.time, X.time, y);
-    pdf.text(trunc(r.name, 26), X.name, y);
-    pdf.text(trunc(r.town, 12), X.town, y);
-    pdf.text(trunc(r.phone, 14), X.phone, y);
-    pdf.text(trunc(r.prayer, 22), X.prayer, y);
-    pdf.text(String(r.qty), X.qty, y);
-
+    pdf.text(String(r.n), 40, y);
+    pdf.text(r.time, 70, y);
+    pdf.text(trunc(r.name, 28), 130, y);
+    pdf.text(trunc(r.town, 14), 320, y);
+    pdf.text(trunc(r.phone, 14), 410, y);
+    pdf.text(String(r.qty), 540, y);
     y+=14;
+
+    if(r.prayer){
+      if(y>720){ pdf.addPage(); y=60; }
+      pdf.setFont("helvetica","italic");
+      pdf.text(`Petición: ${trunc(r.prayer, 95)}`, 70, y);
+      pdf.setFont("helvetica","normal");
+      y+=14;
+    }
   }
 
   pdf.save(`NexusChurchs_${safeFile(title)}_${date || "reporte"}.pdf`);
 }
 
 /* ==========================================================
-   VERSES — catálogo desde assets/verses/index.json
-   Formato:
-   { "items":[ { "path":"assets/verses/juan_3_16.json", "ref":"Juan 3:16", "text":"..." } ] }
+   VERSES — CATALOGO + DROPDOWN
+   Requiere: assets/verses/index.json con { items:[{path,ref,text}] }
 ========================================================== */
 async function loadVersesCatalog(){
   if(!verseSelect) return;
@@ -733,10 +730,19 @@ async function loadVersesCatalog(){
   verseSelect.innerHTML = `<option value="">Cargando catálogo…</option>`;
   if(versePreview) versePreview.textContent = "—";
 
+  const tryUrls = [
+    "assets/verses/index.json",
+    "./assets/verses/index.json"
+  ];
+
   try{
-    const res = await fetch("assets/verses/index.json", { cache:"no-store" });
-    if(!res.ok) throw new Error("Falta assets/verses/index.json");
-    const data = await res.json();
+    let data = null;
+
+    for(const url of tryUrls){
+      const res = await fetch(url, { cache:"no-store" });
+      if(res.ok){ data = await res.json(); break; }
+    }
+    if(!data) throw new Error("Catálogo no disponible");
 
     VERSES_CATALOG = Array.isArray(data.items) ? data.items : [];
     verseSelect.innerHTML = `<option value="">— Selecciona un versículo —</option>`;
@@ -758,18 +764,22 @@ async function loadVersesCatalog(){
       if(versePreview) versePreview.textContent = `${clean(it.ref||"")} — ${clean(it.text||"")}`;
     };
 
+    queueMsg && (queueMsg.textContent = `Catálogo cargado: ${VERSES_CATALOG.length} verses ✅`);
+
   }catch(e){
     VERSES_CATALOG = [];
     verseSelect.innerHTML = `<option value="">Catálogo no disponible</option>`;
-    if(versePreview) versePreview.textContent = "Crea assets/verses/index.json";
+    if(versePreview) versePreview.textContent = "No se pudo leer assets/verses/index.json";
+    queueMsg && (queueMsg.textContent = "Catálogo no disponible (ruta/caché).");
   }
 }
 
 /* ==========================================================
-   QUEUE — sincronizada por iglesia (en doc churches/{id})
-   - wowQueue: [{path,ref,duration}]
-   - queueEnabled: boolean
-   - queueIndex: number
+   QUEUE — sincronizada por iglesia
+   Firestore churches/{churchId}:
+   wowQueue: [{path,ref,duration,text?}]
+   queueEnabled: boolean
+   queueIndex: number
 ========================================================== */
 function applyQueueFromChurchDoc(d){
   WOW_QUEUE = Array.isArray(d.wowQueue) ? d.wowQueue : [];
@@ -781,7 +791,7 @@ function applyQueueFromChurchDoc(d){
   if(queueEnabled) startLocalQueueRotation();
   else stopLocalQueueRotation();
 
-  renderCurrentQueueItem();
+  renderCurrentVerseNow();
 }
 
 function stopLocalQueueRotation(){
@@ -804,19 +814,54 @@ function startLocalQueueRotation(){
   }, dur * 1000);
 }
 
-async function renderCurrentQueueItem(){
+function hideVerse(){
+  if(verseLine) verseLine.hidden = true;
+  if(verseRef)  verseRef.hidden = true;
+}
+
+/* === Render Verse “NOW” (híbrido) === */
+async function renderCurrentVerseNow(){
   if(!verseLine || !verseRef) return;
 
-  if(!queueEnabled || !WOW_QUEUE || WOW_QUEUE.length===0){
-    verseLine.hidden = true;
-    verseRef.hidden = true;
+  // pausa si hay bienvenida reciente
+  if(Date.now() < versePausedUntil){
+    hideVerse();
     return;
   }
 
-  const item = WOW_QUEUE[queueIndex] || WOW_QUEUE[0];
-  if(!item?.path) return;
+  // 1) Si Firebase tiene verse directo, manda eso (prioridad)
+  if(firebaseVerseText){
+    verseLine.textContent = firebaseVerseText;
+    verseRef.textContent = firebaseVerseRef || "—";
+    verseLine.hidden = false;
+    verseRef.hidden = false;
+    return;
+  }
 
-  await loadVerseByPath(item.path, item.ref || "");
+  // 2) Si hay queue activa, intenta por queue
+  if(queueEnabled && WOW_QUEUE && WOW_QUEUE.length){
+    const item = WOW_QUEUE[queueIndex] || WOW_QUEUE[0];
+
+    // si el item trae text embebido (por si lo guardaste antes en Firebase), úsalo sin fetch
+    const embeddedText = clean(item?.text || "");
+    const embeddedRef  = clean(item?.ref || "");
+    if(embeddedText){
+      verseLine.textContent = embeddedText;
+      verseRef.textContent  = embeddedRef || "—";
+      verseLine.hidden = false;
+      verseRef.hidden = false;
+      return;
+    }
+
+    // si no, fetch al path
+    if(item?.path){
+      await loadVerseByPath(item.path, item.ref || "");
+      return;
+    }
+  }
+
+  // 3) Nada: oculto
+  hideVerse();
 }
 
 async function loadVerseByPath(path, fallbackRef){
@@ -831,8 +876,7 @@ async function loadVerseByPath(path, fallbackRef){
     const ref = clean(j.ref || fallbackRef || "");
 
     if(!txt){
-      verseLine.hidden = true;
-      verseRef.hidden = true;
+      hideVerse();
       return;
     }
 
@@ -842,8 +886,15 @@ async function loadVerseByPath(path, fallbackRef){
     verseRef.hidden = false;
 
   }catch(e){
-    verseLine.hidden = true;
-    verseRef.hidden = true;
+    // no mates el show: si falla GitHub, pero Firebase tiene verse, lo mostramos
+    if(firebaseVerseText){
+      verseLine.textContent = firebaseVerseText;
+      verseRef.textContent = firebaseVerseRef || "—";
+      verseLine.hidden = false;
+      verseRef.hidden = false;
+      return;
+    }
+    hideVerse();
   }
 }
 
@@ -867,24 +918,36 @@ function bindQueueActions(){
 
       const nextQueue = (WOW_QUEUE || []).concat([item]);
 
-      await db.collection("churches").doc(churchId).set({ wowQueue: nextQueue }, { merge:true });
+      await db.collection("churches").doc(churchId).set({
+        wowQueue: nextQueue
+      }, { merge:true });
+
       queueMsg && (queueMsg.textContent = "Añadido a cola ✅");
     };
   }
 
   if(btnClearQueue){
     btnClearQueue.onclick = async ()=>{
-      await db.collection("churches").doc(churchId).set({ wowQueue: [], queueIndex: 0 }, { merge:true });
+      await db.collection("churches").doc(churchId).set({
+        wowQueue: [],
+        queueIndex: 0
+      }, { merge:true });
+
       queueMsg && (queueMsg.textContent = "Cola vacía ✅");
     };
   }
 
   if(btnStartQueue){
     btnStartQueue.onclick = async ()=>{
-      if(!WOW_QUEUE || WOW_QUEUE.length===0){
+      const d = await db.collection("churches").doc(churchId).get();
+      const cur = d.data() || {};
+      const q = Array.isArray(cur.wowQueue) ? cur.wowQueue : [];
+      if(!q.length){
         queueMsg && (queueMsg.textContent = "La cola está vacía.");
         return;
       }
+
+      // IMPORTANT: si antes estabas usando Firebase verse directo, lo dejamos como “no bloqueante”
       await db.collection("churches").doc(churchId).set({ queueEnabled: true }, { merge:true });
       queueMsg && (queueMsg.textContent = "Rotación iniciada ▶");
     };
@@ -899,7 +962,8 @@ function bindQueueActions(){
 }
 
 /* ==========================================================
-   PIN (BLINDADO) — default 1234
+   PIN (BLINDADO)
+   - default 1234 si pinHash vacío
 ========================================================== */
 const PIN_OK_KEY = (id)=> `nc_pin_ok_${id}`;
 
@@ -973,7 +1037,10 @@ async function tryUnlock(){
       return showPinError("PIN inválido (4–6 dígitos).");
     }
 
-    const expectedHash = pinHashFromDB ? pinHashFromDB : await sha256Hex("1234");
+    const expectedHash = pinHashFromDB
+      ? pinHashFromDB
+      : await sha256Hex("1234");
+
     const enteredHash = await sha256Hex(entered);
 
     if(enteredHash !== expectedHash){
