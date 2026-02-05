@@ -1,17 +1,20 @@
 "use strict";
 
 /* ==========================================================
-   Nexus Churchs — app.js (FULL / FIX)
-   ✅ PIN blindado por iglesia (default 1234)
-   ✅ Verses híbrido: Firebase primero, GitHub fallback
-   ✅ Queue sincronizada en Firestore (wowQueue / queueEnabled / queueIndex)
-   ✅ Pausa de verse cuando entra un nuevo visitante (anti-choque)
-   ✅ Sin ticker de nombres (eliminado)
-   ✅ Teléfono + petición opcional (se guardan y salen en PDF)
-   ✅ WOW fullscreen + audio fade
+   Nexus Churchs — app.js (FULL / FIXED)
+   - PIN blindado por iglesia (default 1234)
+   - Verses: dropdown desde assets/verses/index.json
+   - Queue: cola rotativa sincronizada (Firestore) PERO guarda ref+text
+     => WOW pinta SIEMPRE aunque falten archivos .json en GitHub (0 x 404)
+   - WOW fullscreen + audio fade
+   - ✅ Elimina ticker nombres (no más “sticker” abajo)
+   - ✅ Pausa verses/rotación cuando entra un checkin nuevo (evita choque)
+   - ✅ Phone + Prayer opcional (si existen inputs en HTML)
 ========================================================== */
 
-if (window.__NEXUS_CHURCHS_LOADED__) throw new Error("Duplicated app.js execution");
+if (window.__NEXUS_CHURCHS_LOADED__) {
+  throw new Error("Duplicated app.js execution");
+}
 window.__NEXUS_CHURCHS_LOADED__ = true;
 
 /******** FIREBASE CONFIG (INTACTO) ********/
@@ -65,14 +68,16 @@ const firstName = document.getElementById("firstName");
 const lastName  = document.getElementById("lastName");
 const town      = document.getElementById("town");
 const partySize = document.getElementById("partySize");
-const phone     = document.getElementById("phone");          // ✅ opcional
-const prayerRequest = document.getElementById("prayerRequest"); // ✅ opcional
 const errCheckin = document.getElementById("errCheckin");
 const checkinStatus = document.getElementById("checkinStatus");
 
+/* Opcionales (si existen en tu HTML) */
+const phone = document.getElementById("phone");
+const prayerRequest = document.getElementById("prayerRequest");
+
 const btnWowFullscreen = document.getElementById("btnWowFullscreen");
 const welcomeBig = document.getElementById("welcomeBig");
-const tickerTrack = document.getElementById("tickerTrack"); // exists pero no lo usamos
+const tickerTrack = document.getElementById("tickerTrack"); // se deja vacío a propósito
 const wowAudio = document.getElementById("wowAudio");
 
 const wowSeconds = document.getElementById("wowSeconds");
@@ -145,17 +150,13 @@ let pinHashFromDB = "";
 
 /* VERSES catalog + queue */
 let VERSES_CATALOG = []; // [{path, ref, text}]
-let WOW_QUEUE = [];      // [{path, ref, duration, text?}]
+let WOW_QUEUE = [];      // [{ref,text,duration}] (path opcional legacy)
 let queueEnabled = false;
 let queueIndex = 0;
 let queueTimer = null;
 
-/* Verse pause when new visitor */
-let versePausedUntil = 0;
-
-/* Firebase verse “truth” (si existía en tu versión anterior) */
-let firebaseVerseText = "";
-let firebaseVerseRef = "";
+/* Pause verses when welcome pops */
+let verseSuppressedUntil = 0; // timestamp ms
 
 /******** INIT ********/
 init().catch(console.error);
@@ -167,15 +168,15 @@ async function init(){
     if(e.key === "Escape" && isWowFullscreen) toggleWowFullscreen(false);
   });
 
+  // ticker OFF (no nombres)
+  if(tickerTrack) tickerTrack.innerHTML = "";
+
   await loadChurches();
-  await loadVersesCatalog();   // dropdown desde index.json (si existe)
+  await loadVersesCatalog();   // dropdown desde index.json
 
   bindActions();
-  bindPinEvents();
+  bindPinEvents();             // pin blindado
   watchChurch();
-
-  // ticker eliminado
-  if(tickerTrack) tickerTrack.innerHTML = "";
 
   firstName?.focus();
 }
@@ -234,7 +235,7 @@ function toggleWowFullscreen(force){
       }
     }catch(e){}
 
-    renderCurrentVerseNow();
+    renderCurrentQueueItem();
 
   } else {
     document.body.classList.remove("wow-fullscreen");
@@ -295,8 +296,6 @@ async function loadChurches(){
 
 /* =========================
    Watch church doc
-   - PIN + WOW seconds + queue state
-   - Firebase verse override (si existe)
 ========================= */
 function watchChurch(){
   if(unsubChurch) unsubChurch();
@@ -315,10 +314,6 @@ function watchChurch(){
     // PIN
     pinHashFromDB = clean(d.pinHash || "");
 
-    // Firebase verse override (tu versión anterior “pintaba” desde Firebase)
-    firebaseVerseText = clean(d.wowVerseText || "");
-    firebaseVerseRef  = clean(d.wowVerseRef || "");
-
     // Queue state
     applyQueueFromChurchDoc(d);
 
@@ -326,11 +321,8 @@ function watchChurch(){
     mountCheckins();
     mountHistory();
 
-    // PIN gate (después de leer pinHashFromDB)
+    // PIN gate
     enforcePin();
-
-    // si estamos en WOW fullscreen, refresca verse
-    renderCurrentVerseNow();
 
   }, ()=>{
     showPinError("No se pudo leer Firebase (reglas/conexión).");
@@ -376,8 +368,6 @@ function bindActions(){
           wowQueue: [],
           queueEnabled: false,
           queueIndex: 0,
-          wowVerseText: "",
-          wowVerseRef: "",
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge:true });
 
@@ -429,7 +419,9 @@ function renderSession(){
     if(sessionMeta) sessionMeta.textContent = "No hay sesión abierta.";
     if(checkinStatus) checkinStatus.textContent = "Abre sesión en Configuración para registrar.";
     if(kpiTotal) kpiTotal.textContent="0";
+    if(tickerTrack) tickerTrack.innerHTML="";
     if(welcomeBig) welcomeBig.textContent="Bienvenidos";
+    hideVerse();
   }
 }
 
@@ -478,8 +470,9 @@ async function submitCheckin(e){
   const l = clean(lastName?.value);
   const t = clean(town?.value);
   const qty = Math.max(1, parseInt(partySize?.value,10) || 1);
-  const ph = clean(phone?.value);
-  const pr = clean(prayerRequest?.value);
+
+  const ph = clean(phone?.value);                 // opcional
+  const pr = clean(prayerRequest?.value);         // opcional
 
   if(!f || !l){
     if(errCheckin){
@@ -500,25 +493,26 @@ async function submitCheckin(e){
       lastName:l,
       fullName:full,
       town: t || "",
-      phone: ph || "",
-      prayerRequest: pr || "",
       partySize: qty,
+      phone: ph || "",
+      prayer: pr || "",
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
   if(firstName) firstName.value="";
   if(lastName) lastName.value="";
   if(town) town.value="";
+  if(partySize) partySize.value="1";
   if(phone) phone.value="";
   if(prayerRequest) prayerRequest.value="";
-  if(partySize) partySize.value="1";
   firstName && firstName.focus();
   if(checkinStatus) checkinStatus.textContent="Registrado ✅";
 }
 
 /* =========================
    Realtime checkins (KPI + welcome)
-   ✅ PAUSA verses durante WOW_MS para no chocar
+   ✅ ticker OFF
+   ✅ pausa verses durante welcome
 ========================= */
 function mountCheckins(){
   if(unsubCheckins) unsubCheckins();
@@ -546,7 +540,7 @@ function mountCheckins(){
 
       if(kpiTotal) kpiTotal.textContent=String(total);
 
-      // ticker eliminado
+      // ticker eliminado a nivel negocio
       if(tickerTrack) tickerTrack.innerHTML = "";
 
       if(newestId && newest && newest.fullName){
@@ -556,15 +550,7 @@ function mountCheckins(){
           if(welcomeBig) welcomeBig.textContent="Bienvenidos";
         } else if(newestId !== lastWelcomeId){
           lastWelcomeId=newestId;
-
-          // ✅ pausa verse para que no choque con el mensaje
-          versePausedUntil = Date.now() + WOW_MS;
-          hideVerse();
-
           popWelcome(newest.fullName);
-
-          // re-render verse luego de la pausa
-          setTimeout(()=> renderCurrentVerseNow(), WOW_MS + 100);
         }
       }
     }, ()=>{});
@@ -572,6 +558,9 @@ function mountCheckins(){
 
 function popWelcome(fullName){
   if(welcomeTimer) clearTimeout(welcomeTimer);
+
+  // pausa verse + rotación mientras dura el welcome
+  suppressVersesFor(WOW_MS + 600);
 
   const churchText = churchName ? ` a la Iglesia ${churchName}` : "";
   const msg = `Bienvenidos ${fullName}${churchText}`;
@@ -588,7 +577,22 @@ function popWelcome(fullName){
       welcomeBig.classList.remove("pop");
       welcomeBig.textContent="Bienvenidos";
     }
+    // al terminar, re-render del verse actual
+    renderCurrentQueueItem();
   }, WOW_MS);
+}
+
+function suppressVersesFor(ms){
+  verseSuppressedUntil = Date.now() + Math.max(0, ms || 0);
+  hideVerse();
+  stopLocalQueueRotation();
+  setTimeout(()=>{
+    if(Date.now() >= verseSuppressedUntil){
+      // reanuda si corresponde
+      if(queueEnabled) startLocalQueueRotation();
+      renderCurrentQueueItem();
+    }
+  }, Math.max(300, ms || 0));
 }
 
 /* =========================
@@ -662,7 +666,7 @@ async function exportEventPDF(eventId){
       name: d.fullName || "",
       town: d.town || "",
       phone: d.phone || "",
-      prayer: d.prayerRequest || "",
+      prayer: d.prayer || "",
       qty
     });
   });
@@ -685,8 +689,8 @@ async function exportEventPDF(eventId){
   pdf.text("#", 40, y);
   pdf.text("Hora", 70, y);
   pdf.text("Nombre", 130, y);
-  pdf.text("Pueblo", 320, y);
-  pdf.text("Tel", 410, y);
+  pdf.text("Pueblo", 310, y);
+  pdf.text("Tel", 430, y);
   pdf.text("Qty", 540, y);
   y+=12;
 
@@ -699,19 +703,19 @@ async function exportEventPDF(eventId){
 
   for(const r of rows){
     if(y>720){ pdf.addPage(); y=60; }
-
     pdf.text(String(r.n), 40, y);
     pdf.text(r.time, 70, y);
-    pdf.text(trunc(r.name, 28), 130, y);
-    pdf.text(trunc(r.town, 14), 320, y);
-    pdf.text(trunc(r.phone, 14), 410, y);
+    pdf.text(trunc(r.name, 24), 130, y);
+    pdf.text(trunc(r.town, 16), 310, y);
+    pdf.text(trunc(r.phone, 14), 430, y);
     pdf.text(String(r.qty), 540, y);
     y+=14;
 
+    // petición de oración debajo si existe (una línea)
     if(r.prayer){
-      if(y>720){ pdf.addPage(); y=60; }
+      if(y>730){ pdf.addPage(); y=60; }
       pdf.setFont("helvetica","italic");
-      pdf.text(`Petición: ${trunc(r.prayer, 95)}`, 70, y);
+      pdf.text(trunc("Oración: " + r.prayer, 90), 130, y);
       pdf.setFont("helvetica","normal");
       y+=14;
     }
@@ -722,7 +726,7 @@ async function exportEventPDF(eventId){
 
 /* ==========================================================
    VERSES — CATALOGO + DROPDOWN
-   Requiere: assets/verses/index.json con { items:[{path,ref,text}] }
+   index.json: { "items":[ {path,ref,text}, ... ] }
 ========================================================== */
 async function loadVersesCatalog(){
   if(!verseSelect) return;
@@ -730,19 +734,10 @@ async function loadVersesCatalog(){
   verseSelect.innerHTML = `<option value="">Cargando catálogo…</option>`;
   if(versePreview) versePreview.textContent = "—";
 
-  const tryUrls = [
-    "assets/verses/index.json",
-    "./assets/verses/index.json"
-  ];
-
   try{
-    let data = null;
-
-    for(const url of tryUrls){
-      const res = await fetch(url, { cache:"no-store" });
-      if(res.ok){ data = await res.json(); break; }
-    }
-    if(!data) throw new Error("Catálogo no disponible");
+    const res = await fetch("assets/verses/index.json", { cache:"no-store" });
+    if(!res.ok) throw new Error("Falta assets/verses/index.json");
+    const data = await res.json();
 
     VERSES_CATALOG = Array.isArray(data.items) ? data.items : [];
     verseSelect.innerHTML = `<option value="">— Selecciona un versículo —</option>`;
@@ -750,7 +745,7 @@ async function loadVersesCatalog(){
     VERSES_CATALOG.forEach((it, idx)=>{
       const opt = document.createElement("option");
       opt.value = String(idx);
-      opt.textContent = `${clean(it.ref||"Verso")} — ${trunc(clean(it.text||""), 40)}`;
+      opt.textContent = `${clean(it.ref||"Verso")} — ${trunc(clean(it.text||""), 44)}`;
       verseSelect.appendChild(opt);
     });
 
@@ -764,20 +759,17 @@ async function loadVersesCatalog(){
       if(versePreview) versePreview.textContent = `${clean(it.ref||"")} — ${clean(it.text||"")}`;
     };
 
-    queueMsg && (queueMsg.textContent = `Catálogo cargado: ${VERSES_CATALOG.length} verses ✅`);
-
   }catch(e){
     VERSES_CATALOG = [];
     verseSelect.innerHTML = `<option value="">Catálogo no disponible</option>`;
-    if(versePreview) versePreview.textContent = "No se pudo leer assets/verses/index.json";
-    queueMsg && (queueMsg.textContent = "Catálogo no disponible (ruta/caché).");
+    if(versePreview) versePreview.textContent = "Crea assets/verses/index.json";
   }
 }
 
 /* ==========================================================
    QUEUE — sincronizada por iglesia
-   Firestore churches/{churchId}:
-   wowQueue: [{path,ref,duration,text?}]
+   Firestore en churches/{churchId}:
+   wowQueue: [{ref,text,duration}]  ✅ principal
    queueEnabled: boolean
    queueIndex: number
 ========================================================== */
@@ -791,7 +783,7 @@ function applyQueueFromChurchDoc(d){
   if(queueEnabled) startLocalQueueRotation();
   else stopLocalQueueRotation();
 
-  renderCurrentVerseNow();
+  renderCurrentQueueItem();
 }
 
 function stopLocalQueueRotation(){
@@ -802,72 +794,71 @@ function startLocalQueueRotation(){
   stopLocalQueueRotation();
   if(!WOW_QUEUE || WOW_QUEUE.length===0) return;
 
+  // si estamos suprimidos por welcome, no rotamos
+  if(Date.now() < verseSuppressedUntil) return;
+
   const item = WOW_QUEUE[queueIndex] || WOW_QUEUE[0];
   const dur = clamp(parseInt(item?.duration || 12,10) || 12, 3, 120);
 
   queueTimer = setTimeout(async ()=>{
     try{
       if(!queueEnabled || !WOW_QUEUE.length) return;
+      if(Date.now() < verseSuppressedUntil) return;
+
       const nextIndex = (queueIndex + 1) % WOW_QUEUE.length;
+
+      // índice global para alinear todos los dispositivos
       await db.collection("churches").doc(churchId).set({ queueIndex: nextIndex }, { merge:true });
-    }catch(e){}
+
+    }catch(e){
+      // no bloquea la app
+    }
   }, dur * 1000);
 }
 
 function hideVerse(){
-  if(verseLine) verseLine.hidden = true;
-  if(verseRef)  verseRef.hidden = true;
+  if(verseLine){ verseLine.hidden = true; verseLine.textContent=""; }
+  if(verseRef){ verseRef.hidden = true; verseRef.textContent=""; }
 }
 
-/* === Render Verse “NOW” (híbrido) === */
-async function renderCurrentVerseNow(){
+function renderCurrentQueueItem(){
   if(!verseLine || !verseRef) return;
 
-  // pausa si hay bienvenida reciente
-  if(Date.now() < versePausedUntil){
+  if(!queueEnabled || !WOW_QUEUE || WOW_QUEUE.length===0){
     hideVerse();
     return;
   }
 
-  // 1) Si Firebase tiene verse directo, manda eso (prioridad)
-  if(firebaseVerseText){
-    verseLine.textContent = firebaseVerseText;
-    verseRef.textContent = firebaseVerseRef || "—";
+  if(Date.now() < verseSuppressedUntil){
+    hideVerse();
+    return;
+  }
+
+  const item = WOW_QUEUE[queueIndex] || WOW_QUEUE[0];
+  const txt = clean(item?.text || "");
+  const ref = clean(item?.ref || "");
+
+  // ✅ Aquí está el fix: si hay texto, NO se hace fetch a GitHub.
+  if(txt){
+    verseLine.textContent = txt;
+    verseRef.textContent = ref || "—";
     verseLine.hidden = false;
     verseRef.hidden = false;
     return;
   }
 
-  // 2) Si hay queue activa, intenta por queue
-  if(queueEnabled && WOW_QUEUE && WOW_QUEUE.length){
-    const item = WOW_QUEUE[queueIndex] || WOW_QUEUE[0];
-
-    // si el item trae text embebido (por si lo guardaste antes en Firebase), úsalo sin fetch
-    const embeddedText = clean(item?.text || "");
-    const embeddedRef  = clean(item?.ref || "");
-    if(embeddedText){
-      verseLine.textContent = embeddedText;
-      verseRef.textContent  = embeddedRef || "—";
-      verseLine.hidden = false;
-      verseRef.hidden = false;
-      return;
-    }
-
-    // si no, fetch al path
-    if(item?.path){
-      await loadVerseByPath(item.path, item.ref || "");
-      return;
-    }
+  // Legacy fallback: si alguien guardó "path" pero no guardó "text"
+  // (esto evita romper iglesias viejas, pero puede dar 404 si path no existe)
+  const path = clean(item?.path || "");
+  if(path && path.endsWith(".json")){
+    loadVerseByPath(path, ref);
+  } else {
+    hideVerse();
   }
-
-  // 3) Nada: oculto
-  hideVerse();
 }
 
 async function loadVerseByPath(path, fallbackRef){
   try{
-    if(!verseLine || !verseRef) return;
-
     const res = await fetch(path, { cache:"no-store" });
     if(!res.ok) throw new Error("404");
     const j = await res.json();
@@ -875,10 +866,7 @@ async function loadVerseByPath(path, fallbackRef){
     const txt = clean(j.text || "");
     const ref = clean(j.ref || fallbackRef || "");
 
-    if(!txt){
-      hideVerse();
-      return;
-    }
+    if(!txt){ hideVerse(); return; }
 
     verseLine.textContent = txt;
     verseRef.textContent = ref || "—";
@@ -886,14 +874,6 @@ async function loadVerseByPath(path, fallbackRef){
     verseRef.hidden = false;
 
   }catch(e){
-    // no mates el show: si falla GitHub, pero Firebase tiene verse, lo mostramos
-    if(firebaseVerseText){
-      verseLine.textContent = firebaseVerseText;
-      verseRef.textContent = firebaseVerseRef || "—";
-      verseLine.hidden = false;
-      verseRef.hidden = false;
-      return;
-    }
     hideVerse();
   }
 }
@@ -909,10 +889,16 @@ function bindQueueActions(){
       }
 
       const dur = clamp(parseInt(verseDuration?.value || "12",10) || 12, 3, 120);
-      const item = { path: clean(it.path), ref: clean(it.ref||""), duration: dur };
 
-      if(!item.path || !item.path.endsWith(".json")){
-        queueMsg && (queueMsg.textContent = "Path inválido (.json requerido).");
+      // ✅ Guardamos TEXT+REF (no dependemos de archivos individuales)
+      const item = {
+        ref: clean(it.ref || ""),
+        text: clean(it.text || ""),
+        duration: dur
+      };
+
+      if(!item.text){
+        queueMsg && (queueMsg.textContent = "Este ítem no tiene texto en index.json.");
         return;
       }
 
@@ -939,15 +925,10 @@ function bindQueueActions(){
 
   if(btnStartQueue){
     btnStartQueue.onclick = async ()=>{
-      const d = await db.collection("churches").doc(churchId).get();
-      const cur = d.data() || {};
-      const q = Array.isArray(cur.wowQueue) ? cur.wowQueue : [];
-      if(!q.length){
+      if(!WOW_QUEUE || WOW_QUEUE.length===0){
         queueMsg && (queueMsg.textContent = "La cola está vacía.");
         return;
       }
-
-      // IMPORTANT: si antes estabas usando Firebase verse directo, lo dejamos como “no bloqueante”
       await db.collection("churches").doc(churchId).set({ queueEnabled: true }, { merge:true });
       queueMsg && (queueMsg.textContent = "Rotación iniciada ▶");
     };
@@ -963,7 +944,6 @@ function bindQueueActions(){
 
 /* ==========================================================
    PIN (BLINDADO)
-   - default 1234 si pinHash vacío
 ========================================================== */
 const PIN_OK_KEY = (id)=> `nc_pin_ok_${id}`;
 
@@ -1008,9 +988,14 @@ function enforcePin(){
 function bindPinEvents(){
   if(!pinOverlay) return;
 
+  const go = (e)=>{
+    try{ e.preventDefault(); }catch(_){}
+    tryUnlock();
+  };
+
   if(btnPinUnlock){
-    btnPinUnlock.addEventListener("click", (e)=>{ e.preventDefault(); tryUnlock(); }, { passive:false });
-    btnPinUnlock.addEventListener("touchend", (e)=>{ e.preventDefault(); tryUnlock(); }, { passive:false });
+    btnPinUnlock.addEventListener("click", go, { passive:false });
+    btnPinUnlock.addEventListener("touchend", go, { passive:false });
   }
 
   if(pinInput){
@@ -1022,6 +1007,11 @@ function bindPinEvents(){
   if(btnLock){
     btnLock.addEventListener("click", (e)=>{ e.preventDefault(); lockApp(); });
   }
+
+  // watchdog: si está unlocked, overlay no puede quedarse pegado
+  setInterval(()=>{
+    if(isUnlocked() && pinOverlay && !pinOverlay.hidden) hideOverlay();
+  }, 800);
 }
 
 function lockApp(){
@@ -1047,7 +1037,7 @@ async function tryUnlock(){
       return showPinError("PIN incorrecto.");
     }
 
-    // sembrar default si no existía
+    // si era default porque no había en DB, lo sembramos
     if(!pinHashFromDB){
       try{
         await db.collection("churches").doc(churchId).set({ pinHash: expectedHash }, { merge:true });
@@ -1057,10 +1047,10 @@ async function tryUnlock(){
 
     setUnlocked(true);
     hideOverlay();
-    setTimeout(()=>{ if(isUnlocked()) hideOverlay(); }, 150);
 
   }catch(err){
     showPinError("Error validando PIN.");
+    showOverlay();
   }
 }
 
